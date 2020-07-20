@@ -177,7 +177,11 @@ Graph for means over time
 ```{r}
 plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean, group = telehealth))+
   geom_line(aes(color = telehealth))+
-  geom_point(aes(color = telehealth))
+  geom_point(aes(color = telehealth))+
+  scale_y_continuous(limits = c(0,20))+
+  labs(title="Mean PHQ9 by PHQ9 adminstration", y = "Mean PHQ9", x = "Adminstration")+
+  geom_text(aes(label = phq_9_mean), position=position_dodge(width=.8), vjust=-0.20)
+
 plot_means
 ```
 
@@ -193,7 +197,18 @@ ggqqplot(phq9_diag_demo_complete$PHQ9_Total)
 hist(phq9_diag_demo_complete$log_PHQ9_Total)
 hist(phq9_diag_demo_complete$PHQ9_Total)
 
+
 ```
+Level two diagnostics problematic 
+```{r}
+simple_linear_results = lm(log_PHQ9_Total~ time*face_to_face + MDD +gender_minority +racial_minority + IL + FL, data = phq9_diag_demo_complete)
+summary(simple_linear_results)
+simple_linear_results_sum = summary(simple_linear_results)
+hist(simple_linear_results_sum$residuals)
+cooks_linear =  cooks.distance(simple_linear_results)
+plot(simple_linear_results)
+```
+
 
 Best results so far
 Does not account for non-normal, but does account for nesting effect which is large
@@ -206,6 +221,8 @@ freq_linear_results = lmer(log_PHQ9_Total~ time*face_to_face + MDD +gender_minor
 summary(freq_linear_results)
 con_inf_freq_linear =  round(confint(freq_linear_results),2)
 freq_linear_results
+library(r2glmm)
+r2beta(freq_linear_results)
 ```
 
 
@@ -219,6 +236,11 @@ hist(freq_linear_results_sum$residuals)
 resid_level1 = HLMresid(freq_linear_results,level = 1, type = "LS", standardize = TRUE)
 resid_level2 <- HLMresid(object = freq_linear_results, level = "SourceClient_ID")
 hist(resid2_fm3$`(Intercept)`)
+hist(resid2_fm3$`(Intercept)`)
+
+cooksd_fm4 <- cooks.distance(freq_linear_results, group = "SourceClient_ID")
+cooksd_fm4
+dotplot_diag(x = cooksd_fm4, cutoff = "internal", name = "cooks.distance", modify = "dotplot") + ylab("Cook's distance") + xlab("school")
 ```
 
 

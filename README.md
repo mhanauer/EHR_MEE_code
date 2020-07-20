@@ -164,7 +164,18 @@ fac_des
 write.csv(fac_des, "fac_des.csv")
 
 ```
+Get group means in for time points for telehealth
+```{r}
+telehealth_time_describe = phq9_diag_demo_complete %>%
+  group_by(telehealth, time) %>%
+  summarise_at(vars(PHQ9_Total), list(phq_9_median = median, phq_9_mean = mean))
+telehealth_time_describe = round(telehealth_time_describe, 2)
+telehealth_time_describe
+```
+
+
 Review the outcome variable
+Having trouble with non-linear regression multilevel model
 ```{r}
 hist(phq9_diag_demo_complete$PHQ9_Total)
 hist(log(phq9_diag_demo_complete$PHQ9_Total))
@@ -174,9 +185,31 @@ data("Orange", package = "datasets")
 head(Orange)
 
 ## 
-startvec <- c(Asym = 2, xmid = 7.25, scal = 3.5)
+startvec <- c(Asym = 3, xmid = 5, scal = 7)
 
-non_linear_results = stan_nlmer(PHQ9_Total ~ SSlogis(Asym, xmid, scal, telehealth*time)~Asym | SourceClient_ID, cores = 2, seed = 12345, init_r = 0.5)
+non_linear_results = stan_nlmer(PHQ9_Total ~ SSlogis(time*telehealth, Asym, xmid, scal)~Asym | SourceClient_ID, cores = 2, seed = 12345, init_r = 0.5, data = phq9_diag_demo_complete, start = startvec)
+### Try with linear regression
+
+#linear_results = stan_lmer(formula = PHQ9_Total~ time*telehealth + (1 | SourceClient_ID), seed = 12345, data = phq9_diag_demo_complete)
+library(lme4)
+head(phq9_diag_demo_complete)
+freq_linear_results = lmer(PHQ9_Total~ time*telehealth + MDD +gender_minority +racial_minority + IL + FL   + (1 | SourceClient_ID), data = phq9_diag_demo_complete)
+summary(freq_linear_results)
+simple_lin_results =  lm(PHQ9_Total ~ time*telehealth + MDD +gender_minority +racial_minority + IL + FL, data = phq9_diag_demo_complete)
+summary(simple_lin_results)
+library(car)
+vif(freq_linear_results)
+
+
+
+```
+Get differences between first and second adminstration which is about 50 days
+```{r}
+matched_0_1_analysis = matched_0_1
+matched_0_1_analysis$diff_score = matched_0_1_analysis$PHQ9_Total.y-matched_0_1_analysis$PHQ9_Total.x
+hist(matched_0_1_analysis$diff_score)
+
+matched_0_1_analysis_results = lm(diff_score ~ telehealth.x*time.x  MDD.x + gender_minority.x + racial_minority.x + IL.x + FL.x, data = matched_0_1_analysis)
 
 ```
 

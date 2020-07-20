@@ -93,10 +93,90 @@ miss_var_summary(phq9_diag_demo)
 miss_case_table(phq9_diag_demo)
 pct_miss_case(phq9_diag_demo)
 ### Go ahead and drop missing so we can include gender
-TestMCARNormality(phq9_diag_demo[c(3,4,6:9)])
+#TestMCARNormality(phq9_diag_demo[c(3,4,6:9)])
 
 phq9_diag_demo_complete = na.omit(phq9_diag_demo)
 dim(phq9_diag_demo_complete)
 dim(phq9_diag_demo)
+```
+
+Create a time variable
+Discard everyone in March, because that is a messy month
+```{r}
+phq9_diag_demo_complete = phq9_diag_demo_complete[order(phq9_diag_demo_complete$SourceClient_ID),]
+phq9_diag_demo_complete =subset(phq9_diag_demo_complete, PHQ9_Date <= "2020-2-28" | PHQ9_Date >= "2020-04-01")
+phq9_diag_demo_complete = phq9_diag_demo_complete[order(phq9_diag_demo_complete$PHQ9_Date),]
+tail(phq9_diag_demo_complete, 7500)
+phq9_diag_demo_complete$telehealth = ifelse(phq9_diag_demo_complete$PHQ9_Date >= "2020-04-01",1, 0)
+phq9_diag_demo_complete$face_to_face = ifelse(phq9_diag_demo_complete$telehealth == 1, 0,1)
+phq9_diag_demo_complete
+library(dplyr)
+phq9_diag_demo_complete = phq9_diag_demo_complete %>% group_by(SourceClient_ID) %>% mutate(time = row_number()-1)
+dim(phq9_diag_demo_complete)
+
+sum(is.na(phq9_diag_demo_complete))
+phq9_diag_demo_complete
+describe.factor(phq9_diag_demo_complete$time)
+### Get the average time between PHQ9 adminstration 
+## You need to get matched pairs to be able to say the difference between some time points
+### To make it easier just to three 4 for now
+## 0 to 1
+time_0 = subset(phq9_diag_demo_complete, time == 0)
+time_1 = subset(phq9_diag_demo_complete, time == 1)
+time_2 = subset(phq9_diag_demo_complete, time == 2)
+time_3 = subset(phq9_diag_demo_complete, time == 3)
+
+matched_0_1 = merge(time_0, time_1, by = "SourceClient_ID", all.y = TRUE)
+dim(matched_0_1)
+dim(time_1)
+matched_0_1
+mean_diff_0_1 = mean(matched_0_1$PHQ9_Date.x-matched_0_1$PHQ9_Date.y)
+mean_diff_0_1
+
+matched_1_2 = merge(time_1, time_2, by = "SourceClient_ID", all.y = TRUE)
+dim(matched_1_2)
+dim(time_1)
+matched_1_2
+mean_diff_1_2 = mean(matched_1_2$PHQ9_Date.x-matched_1_2$PHQ9_Date.y)
+mean_diff_1_2
+
+matched_2_3 = merge(time_2, time_3, by = "SourceClient_ID", all.y = TRUE)
+dim(matched_2_3)
+dim(time_1)
+matched_2_3
+mean_diff_2_3 = mean(matched_2_3$PHQ9_Date.x-matched_2_3$PHQ9_Date.y)
+mean_diff_2_3
+
+mean_overall_days = round(mean(as.numeric(mean_diff_0_1), as.numeric(mean_diff_1_2), as.numeric(mean_diff_2_3)),0)
+mean_overall_days
+
+### Subset for 0,1,2, and 3, because that is 96% of the data and that is almost 200 days
+phq9_diag_demo_complete = subset(phq9_diag_demo_complete, time < 4)
+dim(phq9_diag_demo_complete)
+
+```
+Participant characterstics
+```{r}
+fac_des = apply(phq9_diag_demo_complete[c(4,5,6,7, 10)], 2, function(x){describe.factor(x)})
+fac_des = data.frame(fac_des)
+fac_des = t(fac_des)
+fac_des
+write.csv(fac_des, "fac_des.csv")
+
+```
+Review the outcome variable
+```{r}
+hist(phq9_diag_demo_complete$PHQ9_Total)
+hist(log(phq9_diag_demo_complete$PHQ9_Total))
+### Nonlinear bayesian model
+library(rstanarm)
+data("Orange", package = "datasets")
+head(Orange)
+
+## 
+startvec <- c(Asym = 2, xmid = 7.25, scal = 3.5)
+
+non_linear_results = stan_nlmer(PHQ9_Total ~ SSlogis(Asym, xmid, scal, telehealth*time)~Asym | SourceClient_ID, cores = 2, seed = 12345, init_r = 0.5)
+
 ```
 

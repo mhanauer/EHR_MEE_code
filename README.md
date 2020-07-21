@@ -185,7 +185,7 @@ plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean
   geom_line(aes(color = telehealth))+
   geom_point(aes(color = telehealth))+
   scale_y_continuous(limits = c(0,20))+
-  labs(title="Mean PHQ9 by PHQ-9 adminstration", y = "Mean PHQ-9", x = "Adminstration")+
+  labs(title="Figure 1: Mean PHQ-9 total score by PHQ-9 adminstration", y = "Mean PHQ-9", x = "Adminstration")+
   geom_text(aes(label = phq_9_mean), position=position_dodge(width=.8), vjust=-0.20)
 plot_means
 ```
@@ -199,6 +199,72 @@ ggqqplot(phq9_diag_demo_complete$PHQ9_Total)
 hist(phq9_diag_demo_complete$log_PHQ9_Total)
 hist(phq9_diag_demo_complete$PHQ9_Total)
 
+
+```
+
+Bayesian Linear model
+```{r}
+library(MASS)
+library(rstanarm)
+
+
+stan_linear_log = stan_glm(log_PHQ9_Total ~ time*telehealth + MDD +gender_minority +racial_minority + IL + FL, data = phq9_diag_demo_complete,  seed = 123)
+stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
+### Creates a percentage instead 1 + % 
+stan_linear_log_sum= stan_linear_log_sum - 1
+stan_linear_log_sum
+
+```
+Check model diagnostics
+```{r}
+car::vif(stan_linear_log)
+lmtest::bptest(stan_linear_log)
+launch_shinystan(stan_linear_log)
+median(bayes_R2(stan_linear_log))
+```
+Plot interactions
+```{r}
+library(sjPlot)
+
+stan_linear_total = stan_glm(PHQ9_Total ~ time*telehealth + MDD +gender_minority +racial_minority + IL + FL, data = phq9_diag_demo_complete, seed = 123)
+
+plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), mdrt.values = "meansd")
+
+plot_stan_linear_total +
+  scale_y_continuous(limits = c(0,20))+
+  labs(title="Figure 2: Predicted values of PHQ-9", y = "PHQ-9 total", x = "Adminstration")
+```
+Test if excluding zero changes things
+```{r}
+phq9_diag_demo_complete_no_zero = subset(phq9_diag_demo_complete, PHQ9_Total > 0)
+dim(phq9_diag_demo_complete_no_zero)[1] / dim(phq9_diag_demo_complete)[1]
+stan_linear_log = stan_glm(log_PHQ9_Total ~ time*telehealth + MDD +gender_minority +racial_minority + IL + FL, data = phq9_diag_demo_complete_no_zero)
+stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
+### Creates a percentage instead 1 + % 
+stan_linear_log_sum= stan_linear_log_sum - 1
+stan_linear_log_sum
+
+
+```
+
+###########################
+Extra
+###########################
+
+Review residuals for linear model
+```{r}
+
+vif(simple_linear_log)
+plot(simple_linear_log)
+hist(simple_linear_log$residuals)
+cook_d = cooks.distance(simple_linear_log)
+cooks_d_data = data.frame(phq9_diag_demo_complete, cook_d)
+cooks_d_data[cooks_d_data$cook_d > 4/dim(phq9_diag_demo_complete)[1]]
+subset(cooks_d_data, cook_d > 4/dim(phq9_diag_demo_complete)[1])
 
 ```
 Best results so far
@@ -221,10 +287,15 @@ library(r2glmm)
 r2beta(freq_linear_results)
 range(phq9_diag_demo_complete$PHQ9_Date)
 0.5519 /(0.5519+0.2712)
+library(descr)
+
+telehealth_dat = subset(phq9_diag_demo_complete, telehealth  == 1)
+face_to_face = subset(phq9_diag_demo_complete, face_to_face == 1)
+compmeans(telehealth_dat$PHQ9_Total, telehealth_dat$time)
+compmeans(face_to_face$PHQ9_Total, face_to_face$time)
 ```
 
-
-Review post best model diagnostics
+Review residuals for multilevel model
 ```{r}
 vif(freq_linear_results)
 plot(freq_linear_results)
@@ -239,6 +310,17 @@ hist(resid2_fm3$`(Intercept)`)
 cooksd_fm4 <- cooks.distance(freq_linear_results, group = "SourceClient_ID")
 cooksd_fm4
 dotplot_diag(x = cooksd_fm4, cutoff = "internal", name = "cooks.distance", modify = "dotplot") + ylab("Cook's distance") + xlab("school")
+```
+Test out interactions
+```{r}
+library(interactions)
+
+phq9_diag_demo_complete$log_PHQ9_Total = log(phq9_diag_demo_complete$PHQ9_Total+1)
+freq_linear_results_total = lmer(PHQ9_Total~ time*telehealth + MDD +gender_minority +racial_minority + IL + FL + (1 | SourceClient_ID), data = phq9_diag_demo_complete)
+summary(freq_linear_results_total)
+#johnson_neyman(freq_linear_results_total, pred = "telehealth", modx = "time", control.fdr = TRUE)
+interact_plot(freq_linear_results_total, pred = "time", modx =  "telehealth")
+
 ```
 
 

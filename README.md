@@ -304,7 +304,6 @@ I don't want people who have a baseline date pre telehealth and a admin 1 date p
 ```{r}
 #### SHould be 2634 pairs from baseline to first admin
 dat_base = subset(phq9_diag_demo_complete, time == 0)
-### If you are in the face to face group and your date is on or after 4-1-2020, then you are dropped 
 describe.factor(dat_base$telehealth)
 sum(duplicated(dat_base$SourceClient_ID))
 tail(dat_base, 3500)
@@ -326,17 +325,30 @@ dat_base_1$drop = NULL
 
 clean_compare_dat = dat_base_1
 dim(clean_compare_dat)
+clean_compare_dat
 ### Make long
+library(sjmisc)
+clean_compare_dat_long = reshape(clean_compare_dat, varying = list(c("PHQ9_Date.x", "PHQ9_Date.y"), c("PHQ9_Total.x", "PHQ9_Total.y"), c("MDD.x", "MDD.y"), c("ORG_ABBREV.x", "ORG_ABBREV.y"), c("gender_minority.x", "gender_minority.y"), c("racial_minority.x", "racial_minority.y"), c("IL.x", "IL.y"), c("FL.x", "FL.y"), c("telehealth.x", "telehealth.y"), c("telehealth.x", "telehealth.y"), c("face_to_face.x", "face_to_face.y"), c("log_PHQ9_Total.x", "log_PHQ9_Total.y"), c("time.x", "time.y")), times = c(0,1), direction = "long")
+dim(clean_compare_dat_long)
+clean_compare_dat_long
+### Not sure why two telehealth variables, but they are the same
+sum(clean_compare_dat_long$telehealth.x==clean_compare_dat_long$telehealth.x.1) == dim(clean_compare_dat_long)[1]
+clean_compare_dat_long
+
+
+
 
 ```
 Participant characteristics
 ```{r}
-
+### Create base for descriptive
+clean_compare_dat_base = subset(clean_compare_dat_long, time == 0)
+dim(clean_compare_dat_base)
 ### Average time between administrations
 mean(clean_compare_dat$PHQ9_Date.x-clean_compare_dat$PHQ9_Date.y)
 
-dim(clean_compare_dat)
-fac_des = apply(clean_compare_dat[c(4:8, 11, 2)], 2, function(x){describe.factor(x)})
+dim(clean_compare_dat_base)
+fac_des = apply(clean_compare_dat_base[c(5:8, 11)], 2, function(x){describe.factor(x)})
 fac_des = data.frame(fac_des)
 fac_des = t(fac_des)
 fac_des
@@ -346,20 +358,20 @@ write.csv(fac_des, "fac_des.csv")
 
 Get group means in for time points for telehealth
 ```{r}
-telehealth_time_describe = clean_compare_dat %>%
-  group_by(telehealth, time) %>%
+telehealth_time_describe = clean_compare_dat_long %>%
+  group_by(telehealth.x, time) %>%
   summarise_at(vars(PHQ9_Total.x), list(phq_9_median = median, phq_9_mean = mean))
 telehealth_time_describe = round(telehealth_time_describe, 2)
-telehealth_time_describe$telehealth = as.factor(telehealth_time_describe$telehealth)
+telehealth_time_describe$telehealth.x = as.factor(telehealth_time_describe$telehealth.x)
 telehealth_time_describe$time = as.factor(telehealth_time_describe$time)
 telehealth_time_describe
 ```
 Graph for means over time
 ```{r}
 library(ggplot2)
-plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean, group = telehealth))+
-  geom_line(aes(color = telehealth))+
-  geom_point(aes(color = telehealth))+
+plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean, group = telehealth.x))+
+  geom_line(aes(color = telehealth.x))+
+  geom_point(aes(color = telehealth.x))+
   scale_y_continuous(limits = c(0,20))+
   labs(title="Figure 1: Mean PHQ-9 total score by PHQ-9 adminstration \n for complete telehealth and face to face", y = "Mean PHQ-9", x = "Adminstration")+
   labs(fill = "telehealth")+
@@ -370,7 +382,7 @@ plot_means
 Run model comparing clean face to face with clean telehealth
 ```{r}
 library(rstanarm)
-stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat,  seed = 123)
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123)
 stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
 ## To get percentage change interpretation need to exp the parameter estimates
 stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
@@ -391,16 +403,16 @@ Plot interactions
 ```{r}
 library(sjPlot)
 library(sjmisc)
-clean_compare_dat$time = to_factor(clean_compare_dat$time)
-stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat, seed = 123)
+clean_compare_dat_long$time = to_factor(clean_compare_dat_long$time)
+stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long, seed = 123)
 stan_linear_total_sum = round(stan_linear_total$stan_summary[,c(1,3,4,10)],4)
 stan_linear_total_sum
 
 
-plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"))
+plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3)
 
 plot_stan_linear_total +
-  scale_y_continuous(limits = c(0,20))+
+  scale_y_continuous(limits = c(8,14))+
   labs(title="Figure 2: Predicted values of PHQ-9", y = "PHQ-9 total", x = "Adminstration")
 ```
 
@@ -418,6 +430,158 @@ stan_linear_log_sum
 
 
 ```
+#############################
+Try with three adminstrations
+#############################
+```{r}
+#### SHould be 1261 pairs from baseline to first admin
+dat_base = subset(phq9_diag_demo_complete, time == 0)
+describe.factor(dat_base$telehealth)
+sum(duplicated(dat_base$SourceClient_ID))
+tail(dat_base, 3500)
+
+dat_1 = subset(phq9_diag_demo_complete, time == 1)
+dat_base_1 = merge(dat_base, dat_1, by = "SourceClient_ID")
+dim(dat_base_1)
+dat_1
+
+
+
+### Now filter out those with face_to_face with .x dates 2020-04-01 or greater
+### Filter otu those who have baseline 
+#### Then filter out those with telehealth with .y dates before 2020-04-01
+dat_base_1$drop = ifelse(dat_base_1$PHQ9_Date.x < "2020-04-01" & dat_base_1$PHQ9_Date.y > "2020-04-01", 1, 0) 
+test = subset(dat_base_1, drop == 1)
+test[c("PHQ9_Date.x", "PHQ9_Date.y")]
+dat_base_1 = subset(dat_base_1, drop == 0)
+dat_base_1[c("PHQ9_Date.x", "PHQ9_Date.y")]
+dat_base_1$drop = NULL
+#### Now merge with only those who have a second adminstration then remove those folks with overlapping third as well
+dat_base_2 = subset(phq9_diag_demo_complete, time == 2)
+dim(dat_base_2)
+dat_base_1_2 = merge(dat_base_1, dat_base_2, by = "SourceClient_ID", all.y = TRUE)
+dim(dat_base_1_2)
+### Now if base and second admin are within range drop
+dat_base_1_2$drop = ifelse(dat_base_1_2$PHQ9_Date.x < "2020-04-01" & dat_base_1_2$PHQ9_Date > "2020-04-01", 1, 0)
+
+test = subset(dat_base_1_2, drop == 1)
+test[c("PHQ9_Date.x", "PHQ9_Date")]
+dat_base_1_2 = subset(dat_base_1_2, drop ==0)
+dim(dat_base_1_2)
+
+clean_compare_dat = dat_base_1_2
+dim(clean_compare_dat)
+clean_compare_dat
+clean_compare_dat$drop = NULL
+### Make long
+library(sjmisc)
+clean_compare_dat_long = reshape(clean_compare_dat, varying = list(c("PHQ9_Date.x", "PHQ9_Date.y", "PHQ9_Date"), c("PHQ9_Total.x", "PHQ9_Total.y", "PHQ9_Total"), c("MDD.x", "MDD.y", "MDD"), c("ORG_ABBREV.x", "ORG_ABBREV.y", "ORG_ABBREV"), c("gender_minority.x", "gender_minority.y", "gender_minority"), c("racial_minority.x", "racial_minority.y", "racial_minority"), c("IL.x", "IL.y", "IL"), c("FL.x", "FL.y", "FL"), c("telehealth.x", "telehealth.y", "telehealth"), c("face_to_face.x", "face_to_face.y", "face_to_face"), c("log_PHQ9_Total.x", "log_PHQ9_Total.y", "log_PHQ9_Total"), c("time.x", "time.y", "time")), times = c(0,1,2), direction = "long")
+dim(clean_compare_dat_long)
+clean_compare_dat_long
+
+
+
+```
+Participant characteristics
+```{r}
+### Create base for descriptive
+clean_compare_dat_base = subset(clean_compare_dat_long, time == 0)
+dim(clean_compare_dat_base)
+### Average time between administrations
+mean(clean_compare_dat$PHQ9_Date.x-clean_compare_dat$PHQ9_Date.y)
+mean(clean_compare_dat$PHQ9_Date.y-clean_compare_dat$PHQ9_Date)
+dim(clean_compare_dat_base)
+fac_des = apply(clean_compare_dat_base[c(5:8, 11)], 2, function(x){describe.factor(x)})
+fac_des = data.frame(fac_des)
+fac_des = t(fac_des)
+fac_des
+write.csv(fac_des, "fac_des.csv")
+2634*2
+```
+
+Get group means in for time points for telehealth
+```{r}
+telehealth_time_describe = clean_compare_dat_long %>%
+  group_by(telehealth.x, time) %>%
+  summarise_at(vars(PHQ9_Total.x), list(phq_9_median = median, phq_9_mean = mean))
+telehealth_time_describe = round(telehealth_time_describe, 2)
+telehealth_time_describe$telehealth.x = as.factor(telehealth_time_describe$telehealth.x)
+telehealth_time_describe$time = as.factor(telehealth_time_describe$time)
+telehealth_time_describe
+```
+Graph for means over time
+```{r}
+library(ggplot2)
+plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean, group = telehealth.x))+
+  geom_line(aes(color = telehealth.x))+
+  geom_point(aes(color = telehealth.x))+
+  scale_y_continuous(limits = c(0,20))+
+  labs(title="Figure 1: Mean PHQ-9 total score by PHQ-9 adminstration \n for complete telehealth and face to face", y = "Mean PHQ-9", x = "Adminstration")+
+  labs(fill = "telehealth")+
+  geom_text(aes(label = phq_9_mean), position=position_dodge(width=.8), vjust=-0.20)
+plot_means
+```
+
+Run model comparing clean face to face with clean telehealth
+```{r}
+library(rstanarm)
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123)
+stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
+### Creates a percentage instead 1 + % 
+stan_linear_log_sum= stan_linear_log_sum - 1
+stan_linear_log_sum
+
+
+```
+Check model diagnostics
+```{r}
+car::vif(stan_linear_log)
+lmtest::bptest(stan_linear_log)
+launch_shinystan(stan_linear_log)
+median(bayes_R2(stan_linear_log))
+```
+Plot interactions
+```{r}
+library(sjPlot)
+library(sjmisc)
+clean_compare_dat_long$time = to_factor(clean_compare_dat_long$time)
+stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long, seed = 123)
+stan_linear_total_sum = round(stan_linear_total$stan_summary[,c(1,3,4,10)],4)
+stan_linear_total_sum
+
+
+plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3)
+
+plot_stan_linear_total +
+  scale_y_continuous(limits = c(5,15))+
+  labs(title="Figure 2: Predicted values of PHQ-9", y = "PHQ-9 total", x = "Adminstration")
+```
+Try Johson newman method
+```{r}
+jonhson_model = lm(PHQ9_Total.x ~ time*telehealth.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long)
+
+
+
+```
+
+
+Test if excluding zero changes things
+```{r}
+phq9_diag_demo_complete_no_zero = subset(phq9_diag_demo_complete, PHQ9_Total > 0)
+dim(phq9_diag_demo_complete_no_zero)[1] / dim(phq9_diag_demo_complete)[1]
+stan_linear_log = stan_glm(log_PHQ9_Total ~ time*telehealth + MDD +gender_minority +racial_minority + IL + FL, data = phq9_diag_demo_complete_no_zero)
+stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
+### Creates a percentage instead 1 + % 
+stan_linear_log_sum= stan_linear_log_sum - 1
+stan_linear_log_sum
+
+
+```
+
 
 ###########################
 Extra

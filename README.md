@@ -218,6 +218,37 @@ fac_des
 write.csv(fac_des, "fac_des.csv")
 
 ```
+Get participant characteristics for telehealth group and face to face group
+```{r}
+clean_compare_dat_base_face_to_face = subset(clean_compare_dat_base, face_to_face.x == 1)
+fac_des = apply(clean_compare_dat_base_face_to_face[c(5:8, 11)], 2, function(x){describe.factor(x)})
+fac_des = data.frame(fac_des)
+fac_des = t(fac_des)
+fac_des
+write.csv(fac_des, "fac_des.csv")
+
+clean_compare_dat_base_telehealth = subset(clean_compare_dat_base, telehealth == 1)
+fac_des = apply(clean_compare_dat_base_telehealth[c(5:8, 11)], 2, function(x){describe.factor(x)})
+fac_des = data.frame(fac_des)
+fac_des = t(fac_des)
+fac_des
+write.csv(fac_des, "fac_des.csv")
+
+```
+Try putting together logistic regression to compare them
+```{r}
+compare_des_model = stan_glm(telehealth ~ MDD.x + FL.x + IL.x + gender_minority.x + racial_minority.x, family = "binomial", data = clean_compare_dat_base, seed= 123)
+summary(compare_des_model)
+compare_des_model_results =  round(compare_des_model$stan_summary[,c(1,3,4,10)],3)
+compare_des_model_results = round(exp(compare_des_model_results),3)
+### Creates a percentage instead 1 + % 
+compare_des_model_results= compare_des_model_results - 1 
+compare_des_model_results
+
+```
+
+
+
 Get group means in for time points for telehealth
 ```{r}
 telehealth_time_describe = clean_compare_dat_long %>%
@@ -251,6 +282,16 @@ stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
 ### Creates a percentage instead 1 + % 
 stan_linear_log_sum= stan_linear_log_sum - 1
 stan_linear_log_sum
+### Reverse for percentage change
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123)
+stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
+### Creates a percentage instead 1 + % 
+stan_linear_log_sum= stan_linear_log_sum - 1
+stan_linear_log_sum
+
+
 ```
 Random effects model
 ```{r}
@@ -265,6 +306,18 @@ stan_linear_log_sum
 test =  round(bayes_linear_results$stan_summary[1:11,c(1,3,4,10)],4)
 test = data.frame(test)
 write.csv(test, "test.csv")
+
+
+
+bayes_linear_results = stan_lmer(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x  + (1 | SourceClient_ID), data = clean_compare_dat_long, iter = 5000)
+summary(bayes_linear_results)
+bayes_linear_results_sum = round(bayes_linear_results$stan_summary[1:9,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
+### Creates a percentage instead 1 + % 
+stan_linear_log_sum= stan_linear_log_sum - 1
+stan_linear_log_sum
+
 ```
 
 

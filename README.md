@@ -244,7 +244,7 @@ compare_des_model_results = round(exp(compare_des_model_results),3)
 ### Creates a percentage instead 1 + % 
 compare_des_model_results= compare_des_model_results - 1 
 compare_des_model_results
-
+car::vif(compare_des_model)
 ```
 
 
@@ -347,7 +347,7 @@ describe.factor(clean_compare_dat_long_plot$MDD.x)
 
 plot_stan_linear_total +
   scale_y_continuous(limits = c(5,15))+
-  labs(title="Figure 2: Predicted values of PHQ-9", y = "PHQ-9 total", x = "Adminstration")
+  labs(title="Figure 2: Predicted values of PHQ-9 total scores", y = "PHQ-9 total", x = "Adminstration")
 
 ```
 Test if excluding zero changes things

@@ -270,7 +270,35 @@ plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean
   geom_text(aes(label = phq_9_mean), position=position_dodge(width=.8), vjust=-0.20)
 plot_means
 
+
 ```
+Try ipw package
+1/.10
+That seems odd seems like you want to upweight those who are more likely to be in treatment
+Use this framwework makes more sense: https://www.r-bloggers.com/when-you-use-inverse-probability-weighting-for-estimation-what-are-the-weights-actually-doing/
+
+This is good too: https://www.r-bloggers.com/when-theres-a-fork-in-the-road-take-it-or-taking-a-look-at-marginal-structural-models/
+
+Need to identify for trimming and also robust regression, because weights could be outliers (maybe look for sds greater than 3)
+```{r}
+library(ipw)
+clean_compare_dat_base
+library(tidyr)
+telehealth_treat_prob = glm(telehealth ~  MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long, family = "binomial")
+predict_treat_prob = predict(telehealth_treat_prob, type = "response")
+predict_treat_prob
+ipw_var = 1/predict_treat_prob
+ipw_var
+hist(ipw_var)
+
+clean_compare_dat_base_ipw = cbind(clean_compare_dat_base, ipw_var)
+
+test_model_freq = lm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  weights = ipw_var)
+summary(test_model_freq)
+
+```
+
+
 
 Run model comparing clean face to face with clean telehealth
 ```{r}

@@ -237,6 +237,7 @@ write.csv(fac_des, "fac_des.csv")
 ```
 Try putting together logistic regression to compare them
 ```{r}
+library(rstanarm)
 compare_des_model = stan_glm(telehealth ~ MDD.x + FL.x + IL.x + gender_minority.x + racial_minority.x, family = "binomial", data = clean_compare_dat_base, seed= 123)
 summary(compare_des_model)
 compare_des_model_results =  round(compare_des_model$stan_summary[,c(1,3,4,10)],3)
@@ -281,18 +282,17 @@ This is good too: https://www.r-bloggers.com/when-theres-a-fork-in-the-road-take
 
 Need to identify for trimming and also robust regression, because weights could be outliers (maybe look for sds greater than 3)
 ```{r}
-library(ipw)
 clean_compare_dat_base
 library(tidyr)
 telehealth_treat_prob = glm(telehealth ~  MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long, family = "binomial")
 predict_treat_prob = predict(telehealth_treat_prob, type = "response")
 predict_treat_prob
 ipw_var = 1/predict_treat_prob
-ipw_var
-hist(ipw_var)
+### Don't seem to be any outliers in the weights 
+range(scale(ipw_var))
 
 clean_compare_dat_base_ipw = cbind(clean_compare_dat_base, ipw_var)
-
+#0.10743, 0.10385
 test_model_freq = lm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  weights = ipw_var)
 summary(test_model_freq)
 
@@ -303,7 +303,7 @@ summary(test_model_freq)
 Run model comparing clean face to face with clean telehealth
 ```{r}
 library(rstanarm)
-stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123)
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long, weights = ipw_var, seed =  124)
 stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
 ## To get percentage change interpretation need to exp the parameter estimates
 stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
@@ -311,7 +311,7 @@ stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
 stan_linear_log_sum= stan_linear_log_sum - 1
 stan_linear_log_sum
 ### Reverse for percentage change
-stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123)
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 124,  weights = ipw_var)
 stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
 ## To get percentage change interpretation need to exp the parameter estimates
 stan_linear_log_sum = round(exp(stan_linear_log_sum),3)

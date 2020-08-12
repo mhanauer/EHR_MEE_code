@@ -237,6 +237,7 @@ write.csv(fac_des, "fac_des.csv")
 ```
 Try putting together logistic regression to compare them
 ```{r}
+library(rstanarm)
 compare_des_model = stan_glm(telehealth ~ MDD.x + FL.x + IL.x + gender_minority.x + racial_minority.x, family = "binomial", data = clean_compare_dat_base, seed= 123)
 summary(compare_des_model)
 compare_des_model_results =  round(compare_des_model$stan_summary[,c(1,3,4,10)],3)
@@ -266,7 +267,7 @@ plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean
   geom_line(aes(color = telehealth))+
   geom_point(aes(color = telehealth))+
   scale_y_continuous(limits = c(0,20))+
-  labs(title="Figure 1: Mean PHQ-9 total score by PHQ-9 adminstration \n for complete telehealth and face to face", y = "Mean PHQ-9", x = "Adminstration")+
+  labs(title="Figure 1: Mean PHQ-9 total score by PHQ-9 adminstration \n for complete telehealth and face to face", y = "Mean PHQ-9 total score", x = "Adminstration")+
   geom_text(aes(label = phq_9_mean), position=position_dodge(width=.8), vjust=-0.20)
 plot_means
 
@@ -281,16 +282,13 @@ This is good too: https://www.r-bloggers.com/when-theres-a-fork-in-the-road-take
 
 Need to identify for trimming and also robust regression, because weights could be outliers (maybe look for sds greater than 3)
 ```{r}
-library(ipw)
-clean_compare_dat_base
 library(tidyr)
 telehealth_treat_prob = glm(telehealth ~  MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long, family = "binomial")
 predict_treat_prob = predict(telehealth_treat_prob, type = "response")
-predict_treat_prob
 ipw_var = 1/predict_treat_prob
-ipw_var
 hist(ipw_var)
-
+## No outliers
+range(scale(ipw_var))
 clean_compare_dat_base_ipw = cbind(clean_compare_dat_base, ipw_var)
 
 test_model_freq = lm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  weights = ipw_var)
@@ -303,7 +301,7 @@ summary(test_model_freq)
 Run model comparing clean face to face with clean telehealth
 ```{r}
 library(rstanarm)
-stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123)
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123, weights = ipw_var)
 stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
 ## To get percentage change interpretation need to exp the parameter estimates
 stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
@@ -311,15 +309,13 @@ stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
 stan_linear_log_sum= stan_linear_log_sum - 1
 stan_linear_log_sum
 ### Reverse for percentage change
-stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123)
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 123, weights = ipw_var)
 stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
 ## To get percentage change interpretation need to exp the parameter estimates
 stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
 ### Creates a percentage instead 1 + % 
 stan_linear_log_sum= stan_linear_log_sum - 1
 stan_linear_log_sum
-
-
 ```
 Random effects model
 ```{r}
@@ -363,11 +359,11 @@ library(sjmisc)
 clean_compare_dat_long_plot = clean_compare_dat_long
 
 clean_compare_dat_long_plot$time = to_factor(clean_compare_dat_long_plot$time)
-stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long_plot, seed = 123)
+stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long_plot, seed = 123, weights = ipw_var)
 stan_linear_total_sum = round(stan_linear_total$stan_summary[,c(1,3,4,10)],4)
 stan_linear_total_sum
 
-plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3)
+plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3, ci.lvl = c(.95))
 
 ### Plotting the predicted margin means, because using the regression model and mean value at each covariate
 plot_stan_linear_total$data

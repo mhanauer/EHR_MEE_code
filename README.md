@@ -27,8 +27,13 @@ ICD Code Description
 library(prettyR)
 library(lubridate)
 setwd("T:/CRI_Research/telehealth_evaluation/data_codebooks/MEE_Data")
-MEE_PHQ9 = read.csv("MEE_PHQ9.csv", header = TRUE, na.strings = c("NO ENTRY", "NULL", "No entry")) 
-MEE_PHQ9 = MEE_PHQ9[c("Client_ID", "SourceClient_ID", "PHQ9_Date", "PHQ9_Total")]
+MEE_PHQ9 = read.csv("MEE_PHQ9.csv", header = TRUE, na.strings = c("NO ENTRY", "NULL", "No entry"))
+### Just include adults
+MEE_PHQ9$Form_DESC = ifelse(MEE_PHQ9$Form_DESC == "PHQ A", "PHQ9 A", MEE_PHQ9$Form_DESC)
+MEE_PHQ9 = MEE_PHQ9[c("Client_ID", "SourceClient_ID", "PHQ9_Date", "PHQ9_1", "PHQ9_2", "PHQ9_3", "PHQ9_4", "PHQ9_5", "PHQ9_6", "PHQ9_7", "PHQ9_8", "PHQ9_9", "PHQ9_Total", "Form_DESC")]
+
+
+
 
 MEE_PHQ9$PHQ9_Date = ymd(MEE_PHQ9$PHQ9_Date)
 
@@ -69,7 +74,7 @@ dim(MEE_PHQ9)
 phq9_diag_demo = merge(phq9_diag, MEE_ClientDemo, by = "SourceClient_ID", all.x = TRUE)
 dim(phq9_diag_demo)
 
-phq9_diag_demo = phq9_diag_demo[c("SourceClient_ID", "PHQ9_Date", "PHQ9_Total", "MDD", "ORG_ABBREV", "gender_minority", "racial_minority", "Diagnosis.Begin.Date")]
+phq9_diag_demo = phq9_diag_demo[c("SourceClient_ID", "PHQ9_Date", "PHQ9_1", "PHQ9_2", "PHQ9_3", "PHQ9_4", "PHQ9_5", "PHQ9_6", "PHQ9_7", "PHQ9_8", "PHQ9_9", "PHQ9_Total", "MDD", "ORG_ABBREV", "gender_minority", "racial_minority", "Diagnosis.Begin.Date", "Form_DESC")]
 
 ### Create two dummy variables for IL and FL
 phq9_diag_demo$IL = ifelse(phq9_diag_demo$ORG_ABBREV == "CIL", 1, 0)
@@ -85,8 +90,9 @@ Create a time variable that describes each PHQ-9 administration
 Remove all time points greater than three
 Create new log + 1 because you cannot take the log of zero
 ```{r}
-### Create so you don't have to redo code
+### Don't want to change the name so just keeping complete data set
 phq9_diag_demo_complete = phq9_diag_demo
+
 phq9_diag_demo_complete = phq9_diag_demo_complete[order(phq9_diag_demo_complete$SourceClient_ID),]
 #### Comment out to see if the time between sessions changes
 ### Get rid of those in March
@@ -180,8 +186,9 @@ clean_compare_dat = dat_base_1_2
 dim(clean_compare_dat)
 clean_compare_dat
 clean_compare_dat$drop = NULL
+clean_compare_dat
 ### Make long
-
+library(sjmisc)
 
 ```
 Explore missing data
@@ -192,25 +199,22 @@ library(MissMech)
 miss_var_summary(clean_compare_dat)
 miss_case_table(clean_compare_dat)
 pct_miss_case(clean_compare_dat)
+clean_compare_dat
+#TestMCARNormality(clean_compare_dat[,c(12,13, 15:18)])
 ### Go ahead and drop missing so we can include gender
-clean_compare_dat_complete = na.omit(clean_compare_dat)
-dim(clean_compare_dat_complete)
+phq9_diag_demo_complete = na.omit(clean_compare_dat)
 dim(clean_compare_dat)
+dim(phq9_diag_demo_complete)
 range(phq9_diag_demo_complete$PHQ9_Date)
 subset(phq9_diag_demo_complete, PHQ9_Date == "2020-03-01")
 ```
-
-
-Make data long
+Make long format
 ```{r}
-library(sjmisc)
-clean_compare_dat_long = reshape(clean_compare_dat_complete, varying = list(c("PHQ9_Date.x", "PHQ9_Date.y", "PHQ9_Date"), c("PHQ9_Total.x", "PHQ9_Total.y", "PHQ9_Total"), c("MDD.x", "MDD.y", "MDD"), c("ORG_ABBREV.x", "ORG_ABBREV.y", "ORG_ABBREV"), c("gender_minority.x", "gender_minority.y", "gender_minority"), c("racial_minority.x", "racial_minority.y", "racial_minority"), c("IL.x", "IL.y", "IL"), c("FL.x", "FL.y", "FL"), c("telehealth.x", "telehealth.y", "telehealth"), c("face_to_face.x", "face_to_face.y", "face_to_face"), c("log_PHQ9_Total.x", "log_PHQ9_Total.y", "log_PHQ9_Total"), c("time.x", "time.y", "time")), times = c(0,1,2), direction = "long")
+clean_compare_dat_long = reshape(phq9_diag_demo_complete, varying = list(c("PHQ9_Date.x", "PHQ9_Date.y", "PHQ9_Date"), c("PHQ9_Total.x", "PHQ9_Total.y", "PHQ9_Total"), c("PHQ9_1.x", "PHQ9_1.y", "PHQ9_1"), c("PHQ9_2.x", "PHQ9_2.y", "PHQ9_2"),c("PHQ9_3.x", "PHQ9_3.y", "PHQ9_3"), c("PHQ9_4.x", "PHQ9_4.y", "PHQ9_4"),  c("PHQ9_5.x", "PHQ9_5.y", "PHQ9_5"), c("PHQ9_6.x", "PHQ9_6.y", "PHQ9_6"), c("PHQ9_7.x", "PHQ9_7.y", "PHQ9_7"), c("PHQ9_8.x", "PHQ9_8.y", "PHQ9_8"), c("PHQ9_9.x", "PHQ9_9.y", "PHQ9_9"), c("MDD.x", "MDD.y", "MDD"), c("ORG_ABBREV.x", "ORG_ABBREV.y", "ORG_ABBREV"), c("gender_minority.x","gender_minority.y", "gender_minority"), c("racial_minority.x", "racial_minority.y", "racial_minority"), c("IL.x", "IL.y", "IL"), c("FL.x", "FL.y", "FL"), c("telehealth.x", "telehealth.y", "telehealth"), c("face_to_face.x", "face_to_face.y", "face_to_face"), c("log_PHQ9_Total.x", "log_PHQ9_Total.y", "log_PHQ9_Total"), c("time.x", "time.y", "time"), c("Form_DESC.x", "Form_DESC.y", "Form_DESC")), times = c(0,1,2), direction = "long")
 dim(clean_compare_dat_long)
+colnames(clean_compare_dat_long)[20] = "telehealth"
 clean_compare_dat_long
-
-colnames(clean_compare_dat_long)[11] = "telehealth"
 ```
-
 
 Participant characteristics
 ```{r}
@@ -223,7 +227,7 @@ mean_diff_admin = mean(c(mean(clean_compare_dat$PHQ9_Date.x-clean_compare_dat$PH
 mean_diff_admin
 dim(clean_compare_dat_base)
 
-fac_des = apply(clean_compare_dat_base[c(5:8, 11)], 2, function(x){describe.factor(x)})
+fac_des = apply(clean_compare_dat_base[c(14:17, 20,24)], 2, function(x){describe.factor(x)})
 fac_des = data.frame(fac_des)
 fac_des = t(fac_des)
 fac_des
@@ -233,34 +237,52 @@ write.csv(fac_des, "fac_des.csv")
 Get participant characteristics for telehealth group and face to face group
 ```{r}
 clean_compare_dat_base_face_to_face = subset(clean_compare_dat_base, face_to_face.x == 1)
-fac_des = apply(clean_compare_dat_base_face_to_face[c(5:8, 11)], 2, function(x){describe.factor(x)})
+fac_des = apply(clean_compare_dat_base_face_to_face[c(14:17, 20,24)], 2, function(x){describe.factor(x)})
 fac_des = data.frame(fac_des)
 fac_des = t(fac_des)
 fac_des
 write.csv(fac_des, "fac_des.csv")
 
 clean_compare_dat_base_telehealth = subset(clean_compare_dat_base, telehealth == 1)
-fac_des = apply(clean_compare_dat_base_telehealth[c(5:8, 11)], 2, function(x){describe.factor(x)})
+fac_des = apply(clean_compare_dat_base_telehealth[c(14:17, 20,24)], 2, function(x){describe.factor(x)})
 fac_des = data.frame(fac_des)
 fac_des = t(fac_des)
 fac_des
 write.csv(fac_des, "fac_des.csv")
 
 ```
+Psychometrics
+```{r}
+library(psych)
+## Get omegas as each time point
+pysch_dat = clean_compare_dat_long[,c(2,5:13)]
+time_0 = subset(pysch_dat, time == 0)
+time_0$time = NULL
+time_1 = subset(pysch_dat, time == 1)
+time_1$time = NULL
+time_2 = subset(pysch_dat, time == 2)
+time_2$time = NULL
+
+summary(omega(time_0))
+summary(omega(time_1))
+summary(omega(time_2))
+
+```
+
+
+
 Try putting together logistic regression to compare them
 ```{r}
 library(rstanarm)
-compare_des_model = stan_glm(telehealth ~ MDD.x + FL.x + IL.x + gender_minority.x + racial_minority.x, family = "binomial", data = clean_compare_dat_base, seed= 123)
+compare_des_model = stan_glm(telehealth ~ MDD.x + FL.x + IL.x + gender_minority.x + racial_minority.x + Form_DESC.x, family = "binomial", data = clean_compare_dat_base, seed= 123)
 summary(compare_des_model)
 compare_des_model_results =  round(compare_des_model$stan_summary[,c(1,3,4,10)],3)
 compare_des_model_results = round(exp(compare_des_model_results),3)
 ### Creates a percentage instead 1 + % 
-compare_des_model_results= compare_des_model_results - 1 
+#compare_des_model_results= compare_des_model_results - 1 
 compare_des_model_results
 car::vif(compare_des_model)
 ```
-
-
 
 Get group means in for time points for telehealth
 ```{r}
@@ -294,28 +316,29 @@ This is good too: https://www.r-bloggers.com/when-theres-a-fork-in-the-road-take
 
 Need to identify for trimming and also robust regression, because weights could be outliers (maybe look for sds greater than 3)
 ```{r}
-clean_compare_dat_base
+
 library(tidyr)
-telehealth_treat_prob = glm(telehealth ~  MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long, family = "binomial")
+telehealth_treat_prob = glm(telehealth ~  MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, data = clean_compare_dat_long, family = "binomial")
 predict_treat_prob = predict(telehealth_treat_prob, type = "response")
-predict_treat_prob
 ipw_var = 1/predict_treat_prob
 ### Don't seem to be any outliers in the weights 
 range(scale(ipw_var))
+### With 400 samples we expect a few samples (6) to be at or above 3  and only 3.9
+describe.factor(scale(ipw_var))
 
-clean_compare_dat_base_ipw = cbind(clean_compare_dat_base, ipw_var)
+clean_compare_dat_long = cbind(clean_compare_dat_long, ipw_var)
 #0.10743, 0.10385
 test_model_freq = lm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  weights = ipw_var)
 summary(test_model_freq)
 
 ```
 
-
-
 Run model comparing clean face to face with clean telehealth
 ```{r}
 library(rstanarm)
-stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long, weights = ipw_var, seed =  124)
+
+my_prior = normal(location = 0, scale = .2, autoscale = FALSE)
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, data = clean_compare_dat_long, weights = ipw_var, prior = my_prior, seed =  124)
 stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
 ## To get percentage change interpretation need to exp the parameter estimates
 stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
@@ -323,7 +346,7 @@ stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
 stan_linear_log_sum= stan_linear_log_sum - 1
 stan_linear_log_sum
 ### Reverse for percentage change
-stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 124,  weights = ipw_var)
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 124,  weights = ipw_var, prior = my_prior)
 stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
 ## To get percentage change interpretation need to exp the parameter estimates
 stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
@@ -333,6 +356,127 @@ stan_linear_log_sum
 
 
 ```
+
+Check model diagnostics
+```{r}
+car::vif(stan_linear_log)
+lmtest::bptest(stan_linear_log)
+launch_shinystan(stan_linear_log)
+median(bayes_R2(stan_linear_log))
+```
+
+
+Plot interactions
+```{r}
+library(sjPlot)
+library(sjmisc)
+clean_compare_dat_long_plot = clean_compare_dat_long
+
+clean_compare_dat_long_plot$time = to_factor(clean_compare_dat_long_plot$time)
+my_prior = normal(location = 0, scale = .2, autoscale = FALSE)
+stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, prior = my_prior, data = clean_compare_dat_long_plot, seed = 123)
+stan_linear_total_sum = round(stan_linear_total$stan_summary[,c(1,3,4,10)],4)
+stan_linear_total_sum
+
+plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3)
+
+### Plotting the predicted margin means, because using the regression model and mean value at each covariate
+plot_stan_linear_total$data
+describe.factor(clean_compare_dat_long_plot$MDD.x)
+
+plot_stan_linear_total +
+  scale_y_continuous(limits = c(7,13))+
+  labs(title="Figure 2: Predicted values of PHQ-9 total scores", y = "PHQ-9 total", x = "Adminstration")
+
+```
+
+
+
+Test if excluding zero changes things
+```{r}
+phq9_diag_demo_complete_no_zero = subset(clean_compare_dat_long, PHQ9_Total.x > 0)
+dim(phq9_diag_demo_complete_no_zero)[1] / dim(phq9_diag_demo_complete)[1]
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = phq9_diag_demo_complete_no_zero, seed = 123)
+stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
+### Creates a percentage instead 1 + % 
+stan_linear_log_sum= stan_linear_log_sum - 1
+stan_linear_log_sum
+
+
+```
+
+
+Impute the data and evaluate if there are differences in results
+```{r}
+impute_long = reshape(clean_compare_dat, varying = list(c("PHQ9_Date.x", "PHQ9_Date.y", "PHQ9_Date"), c("PHQ9_Total.x", "PHQ9_Total.y", "PHQ9_Total"), c("PHQ9_1.x", "PHQ9_1.y", "PHQ9_1"), c("PHQ9_2.x", "PHQ9_2.y", "PHQ9_2"),c("PHQ9_3.x", "PHQ9_3.y", "PHQ9_3"), c("PHQ9_4.x", "PHQ9_4.y", "PHQ9_4"),  c("PHQ9_5.x", "PHQ9_5.y", "PHQ9_5"), c("PHQ9_6.x", "PHQ9_6.y", "PHQ9_6"), c("PHQ9_7.x", "PHQ9_7.y", "PHQ9_7"), c("PHQ9_8.x", "PHQ9_8.y", "PHQ9_8"), c("PHQ9_9.x", "PHQ9_9.y", "PHQ9_9"), c("MDD.x", "MDD.y", "MDD"), c("ORG_ABBREV.x", "ORG_ABBREV.y", "ORG_ABBREV"), c("gender_minority.x","gender_minority.y", "gender_minority"), c("racial_minority.x", "racial_minority.y", "racial_minority"), c("IL.x", "IL.y", "IL"), c("FL.x", "FL.y", "FL"), c("telehealth.x", "telehealth.y", "telehealth"), c("face_to_face.x", "face_to_face.y", "face_to_face"), c("log_PHQ9_Total.x", "log_PHQ9_Total.y", "log_PHQ9_Total"), c("time.x", "time.y", "time"), c("Form_DESC.x", "Form_DESC.y", "Form_DESC")), times = c(0,1,2), direction = "long")
+impute_long$Form_DESC.x = ifelse(impute_long$Form_DESC.x == "PHQ9 A", 1, 0)
+dim(impute_long)
+colnames(impute_long)[20] = "telehealth"
+impute_long = impute_long[,c("time", "MDD.x", "gender_minority.x", "racial_minority.x", "IL.x", "FL.x", "face_to_face.x", "telehealth", "Form_DESC.x", "log_PHQ9_Total.x")]
+library(Amelia)
+
+a_out_ehr = amelia(x = impute_long, m = 20, noms = c("time", "MDD.x", "gender_minority.x", "racial_minority.x", "IL.x", "FL.x", "Form_DESC.x"), idvars = c("face_to_face.x", "telehealth"))
+setwd("T:/CRI_Research/telehealth_evaluation/data_codebooks/MEE_Data")
+saveRDS(a_out_ehr, file = "a_out_ehr.rds")
+a_out_ehr = readRDS(file = "a_out_ehr.rds")
+compare.density(a_out_ehr, var = "log_PHQ9_Total.x")
+
+impute_dat_loop = a_out_ehr$imputations
+impute_dat_loop[[1]]
+```
+Create the weights for each imputed data set
+```{r}
+library(tidyr)
+telehealth_treat_prob = list()
+predict_treat_prob = list()
+impute_dat_loop_ipw = list()
+ipw_var = list()
+scale_out = list()
+for(i in 1:length(impute_dat_loop)){
+telehealth_treat_prob[[i]] = glm(telehealth ~  MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, data = impute_dat_loop[[i]], family = "binomial")
+predict_treat_prob[[i]] = predict(telehealth_treat_prob[[i]], type = "response")
+ipw_var[[i]] = 1/predict_treat_prob[[i]]
+impute_dat_loop_ipw[[i]] = cbind(impute_dat_loop[[i]], ipw_var = ipw_var[[i]])
+scale_out[[i]]  = scale(ipw_var[[i]])
+}
+hist(unlist(scale_out))
+```
+
+
+Run main model
+Probably just average the CIs not really sure what else to do: https://stats.stackexchange.com/questions/33596/how-can-i-pool-posterior-means-and-credible-intervals-after-multiple-imputation
+```{r}
+stan_linear_log = list()
+stan_linear_log_sum = list()
+
+my_prior = normal(location = 0, scale = .2, autoscale = FALSE)
+
+for(i in 1:length(impute_dat_loop_ipw)){
+stan_linear_log[[i]] = stan_glm(log_PHQ9_Total.x ~ time*face_to_face.x + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, data = impute_dat_loop_ipw[[i]], weights = ipw_var, prior = my_prior, seed =  124)
+# Grab just face to face so row 9
+stan_linear_log_sum[[i]] = round(stan_linear_log[[i]]$stan_summary[10,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum[[i]] = round(exp(stan_linear_log_sum[[i]]),3)
+### Creates a percentage instead 1 + % 
+#stan_linear_log_sum= stan_linear_log_sum[[i]] - 1
+}
+
+unlist_results = unlist(stan_linear_log_sum)
+matrix_results = matrix(unlist_results, ncol = 4, byrow = TRUE)
+colnames(matrix_results) = c("mean", "sd", "lower", "upper")
+matrix_results = data.frame(matrix_results)
+matrix_results = apply(matrix_results, 2, mean)
+matrix_results
+```
+
+
+
+###########################
+Extra
+###########################
+
 Random effects model
 ```{r}
 bayes_linear_results = stan_lmer(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x  + (time | SourceClient_ID), data = clean_compare_dat_long, iter = 5000)
@@ -359,56 +503,6 @@ stan_linear_log_sum= stan_linear_log_sum - 1
 stan_linear_log_sum
 
 ```
-
-
-Check model diagnostics
-```{r}
-car::vif(freq_linear_results)
-lmtest::bptest(stan_linear_log)
-launch_shinystan(stan_linear_log)
-median(bayes_R2(stan_linear_log))
-```
-Plot interactions
-```{r}
-library(sjPlot)
-library(sjmisc)
-clean_compare_dat_long_plot = clean_compare_dat_long
-
-clean_compare_dat_long_plot$time = to_factor(clean_compare_dat_long_plot$time)
-stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long_plot, seed = 123)
-stan_linear_total_sum = round(stan_linear_total$stan_summary[,c(1,3,4,10)],4)
-stan_linear_total_sum
-
-plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3)
-
-### Plotting the predicted margin means, because using the regression model and mean value at each covariate
-plot_stan_linear_total$data
-describe.factor(clean_compare_dat_long_plot$MDD.x)
-
-plot_stan_linear_total +
-  scale_y_continuous(limits = c(5,15))+
-  labs(title="Figure 2: Predicted values of PHQ-9 total scores", y = "PHQ-9 total", x = "Adminstration")
-
-```
-Test if excluding zero changes things
-```{r}
-phq9_diag_demo_complete_no_zero = subset(clean_compare_dat_long, PHQ9_Total.x > 0)
-dim(phq9_diag_demo_complete_no_zero)[1] / dim(phq9_diag_demo_complete)[1]
-stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = phq9_diag_demo_complete_no_zero, seed = 123)
-stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
-## To get percentage change interpretation need to exp the parameter estimates
-stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
-### Creates a percentage instead 1 + % 
-stan_linear_log_sum= stan_linear_log_sum - 1
-stan_linear_log_sum
-
-
-```
-
-
-###########################
-Extra
-###########################
 
 Review residuals for linear model
 ```{r}

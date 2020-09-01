@@ -77,20 +77,7 @@ phq9_diag_demo$FL = ifelse(phq9_diag_demo$ORG_ABBREV == "CFL", 1, 0)
 phq9_diag_demo
 
 ```
-Explore missing data
-```{r}
-### Explore missing data
-library(naniar)
-library(MissMech)
-miss_var_summary(phq9_diag_demo)
-miss_case_table(phq9_diag_demo)
-pct_miss_case(phq9_diag_demo)
-### Go ahead and drop missing so we can include gender
-phq9_diag_demo_complete = na.omit(phq9_diag_demo)
 
-range(phq9_diag_demo_complete$PHQ9_Date)
-subset(phq9_diag_demo_complete, PHQ9_Date == "2020-03-01")
-```
 Discard everyone in March, because that is a messy month
 Create a telehealth variable
 Remove all IDs with the same PHQ-9 administration date assuming duplicates
@@ -98,6 +85,8 @@ Create a time variable that describes each PHQ-9 administration
 Remove all time points greater than three
 Create new log + 1 because you cannot take the log of zero
 ```{r}
+### Create so you don't have to redo code
+phq9_diag_demo_complete = phq9_diag_demo
 phq9_diag_demo_complete = phq9_diag_demo_complete[order(phq9_diag_demo_complete$SourceClient_ID),]
 #### Comment out to see if the time between sessions changes
 ### Get rid of those in March
@@ -192,14 +181,37 @@ dim(clean_compare_dat)
 clean_compare_dat
 clean_compare_dat$drop = NULL
 ### Make long
+
+
+```
+Explore missing data
+```{r}
+### Explore missing data
+library(naniar)
+library(MissMech)
+miss_var_summary(clean_compare_dat)
+miss_case_table(clean_compare_dat)
+pct_miss_case(clean_compare_dat)
+### Go ahead and drop missing so we can include gender
+clean_compare_dat_complete = na.omit(clean_compare_dat)
+dim(clean_compare_dat_complete)
+dim(clean_compare_dat)
+range(phq9_diag_demo_complete$PHQ9_Date)
+subset(phq9_diag_demo_complete, PHQ9_Date == "2020-03-01")
+```
+
+
+Make data long
+```{r}
 library(sjmisc)
-clean_compare_dat_long = reshape(clean_compare_dat, varying = list(c("PHQ9_Date.x", "PHQ9_Date.y", "PHQ9_Date"), c("PHQ9_Total.x", "PHQ9_Total.y", "PHQ9_Total"), c("MDD.x", "MDD.y", "MDD"), c("ORG_ABBREV.x", "ORG_ABBREV.y", "ORG_ABBREV"), c("gender_minority.x", "gender_minority.y", "gender_minority"), c("racial_minority.x", "racial_minority.y", "racial_minority"), c("IL.x", "IL.y", "IL"), c("FL.x", "FL.y", "FL"), c("telehealth.x", "telehealth.y", "telehealth"), c("face_to_face.x", "face_to_face.y", "face_to_face"), c("log_PHQ9_Total.x", "log_PHQ9_Total.y", "log_PHQ9_Total"), c("time.x", "time.y", "time")), times = c(0,1,2), direction = "long")
+clean_compare_dat_long = reshape(clean_compare_dat_complete, varying = list(c("PHQ9_Date.x", "PHQ9_Date.y", "PHQ9_Date"), c("PHQ9_Total.x", "PHQ9_Total.y", "PHQ9_Total"), c("MDD.x", "MDD.y", "MDD"), c("ORG_ABBREV.x", "ORG_ABBREV.y", "ORG_ABBREV"), c("gender_minority.x", "gender_minority.y", "gender_minority"), c("racial_minority.x", "racial_minority.y", "racial_minority"), c("IL.x", "IL.y", "IL"), c("FL.x", "FL.y", "FL"), c("telehealth.x", "telehealth.y", "telehealth"), c("face_to_face.x", "face_to_face.y", "face_to_face"), c("log_PHQ9_Total.x", "log_PHQ9_Total.y", "log_PHQ9_Total"), c("time.x", "time.y", "time")), times = c(0,1,2), direction = "long")
 dim(clean_compare_dat_long)
 clean_compare_dat_long
 
 colnames(clean_compare_dat_long)[11] = "telehealth"
-
 ```
+
+
 Participant characteristics
 ```{r}
 ### Create base for descriptive

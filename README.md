@@ -301,7 +301,7 @@ plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean
   geom_line(aes(color = telehealth))+
   geom_point(aes(color = telehealth))+
   scale_y_continuous(limits = c(0,20))+
-  labs(title="Figure 1: Mean PHQ-9 total score by PHQ-9 adminstration \n for complete telehealth and face to face", y = "Mean PHQ-9", x = "Adminstration")+
+  labs(title="Figure 2: Mean PHQ-9 total score by PHQ-9 adminstration \n for complete telehealth and face to face", y = "Mean PHQ-9", x = "Adminstration")+
   geom_text(aes(label = phq_9_mean), position=position_dodge(width=.8), vjust=-0.20)
 plot_means
 
@@ -386,7 +386,7 @@ describe.factor(clean_compare_dat_long_plot$MDD.x)
 
 plot_stan_linear_total +
   scale_y_continuous(limits = c(7,13))+
-  labs(title="Figure 2: Predicted values of PHQ-9 total scores", y = "PHQ-9 total", x = "Adminstration")
+  labs(title="Figure 3: Predicted values of PHQ-9 total scores", y = "PHQ-9 total", x = "Adminstration")
 
 ```
 
@@ -417,9 +417,9 @@ colnames(impute_long)[20] = "telehealth"
 impute_long = impute_long[,c("time", "MDD.x", "gender_minority.x", "racial_minority.x", "IL.x", "FL.x", "face_to_face.x", "telehealth", "Form_DESC.x", "log_PHQ9_Total.x")]
 library(Amelia)
 
-a_out_ehr = amelia(x = impute_long, m = 20, noms = c("time", "MDD.x", "gender_minority.x", "racial_minority.x", "IL.x", "FL.x", "Form_DESC.x"), idvars = c("face_to_face.x", "telehealth"))
+#a_out_ehr = amelia(x = impute_long, m = 20, noms = c("time", "MDD.x", "gender_minority.x", "racial_minority.x", "IL.x", "FL.x", "Form_DESC.x"), idvars = c("face_to_face.x", "telehealth"))
 setwd("T:/CRI_Research/telehealth_evaluation/data_codebooks/MEE_Data")
-saveRDS(a_out_ehr, file = "a_out_ehr.rds")
+#saveRDS(a_out_ehr, file = "a_out_ehr.rds")
 a_out_ehr = readRDS(file = "a_out_ehr.rds")
 compare.density(a_out_ehr, var = "log_PHQ9_Total.x")
 

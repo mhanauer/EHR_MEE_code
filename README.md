@@ -301,10 +301,10 @@ plot_means = ggplot(data =telehealth_time_describe, aes(x = time, y = phq_9_mean
   geom_line(aes(color = telehealth))+
   geom_point(aes(color = telehealth))+
   scale_y_continuous(limits = c(0,20))+
-  labs(title="Figure 2: Mean PHQ-9 total score by PHQ-9 adminstration \n for complete telehealth and face to face", y = "Mean PHQ-9", x = "Adminstration")+
+  labs(title="Figure 2: Mean PHQ-9 total score by PHQ-9 administration \n for complete telemental health and face to face", y = "Mean PHQ-9", x = "Administration")+
   geom_text(aes(label = phq_9_mean), position=position_dodge(width=.8), vjust=-0.20)
+plot_means$labels$colour = c("Telemental \n health")
 plot_means
-
 
 ```
 Try ipw package
@@ -345,6 +345,7 @@ stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
 ### Creates a percentage instead 1 + % 
 stan_linear_log_sum= stan_linear_log_sum - 1
 stan_linear_log_sum
+posterior_face =  as.data.frame(stan_linear_log)
 ### Reverse for percentage change
 stan_linear_log = stan_glm(log_PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 124,  weights = ipw_var, prior = my_prior)
 stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
@@ -356,6 +357,30 @@ stan_linear_log_sum
 
 
 ```
+Plot the posterior for face to face 
+```{r}
+library(ggplot2)
+colnames(posterior_face)[10] = "face_to_face_time"
+#posterior_face_dat = exp(posterior_face)-1
+
+ggplot(posterior_face_dat, aes(x=face_to_face_time))+
+  geom_histogram()+
+  geom_vline(aes(xintercept=-.1),
+             linetype="dashed")+
+   geom_vline(aes(xintercept=-0.027),
+             linetype="solid")+
+  geom_vline(aes(xintercept=0.219),
+             linetype="solid")+
+  labs(y="Count of parameter estimates", x = "Parameter estimate value (i.e., percentage change)", title  = "Figure 3: Distribution of parameter estimates for the effect of face to face versus\n telemental health over time")+
+  annotate(geom="text", x=.265, y=410, label="Upper 95% CI",
+              color="red")+
+  annotate(geom="text", x=.02, y=410, label="Lower 95% CI",
+              color="red")+
+  annotate(geom="text", x=-.08, y=410, label="NIM",
+              color="red")
+```
+
+
 Test interactions with subgroups
 Somehow this werid loop worked: http://biostat.mc.vanderbilt.edu/wiki/Main/ForLoopRegression
 ```{r}
@@ -400,20 +425,16 @@ clean_compare_dat_long_plot = clean_compare_dat_long
 
 clean_compare_dat_long_plot$time = to_factor(clean_compare_dat_long_plot$time)
 my_prior = normal(location = 0, scale = .2, autoscale = FALSE)
-stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, prior = my_prior, data = clean_compare_dat_long_plot, seed = 123)
+stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, prior = my_prior, weights = ipw_var, data = clean_compare_dat_long_plot, seed = 123)
 stan_linear_total_sum = round(stan_linear_total$stan_summary[,c(1,3,4,10)],4)
 stan_linear_total_sum
 
-plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3)
-
-### Plotting the predicted margin means, because using the regression model and mean value at each covariate
-plot_stan_linear_total$data
-describe.factor(clean_compare_dat_long_plot$MDD.x)
-
-plot_stan_linear_total +
+plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3)+
   scale_y_continuous(limits = c(7,13))+
-  labs(title="Figure 3: Predicted values of PHQ-9 total scores", y = "PHQ-9 total", x = "Adminstration")
+  labs(title="Figure 4: Predicted values of PHQ-9 total scores", y = "PHQ-9 total", x = "Adminstration")
 
+plot_stan_linear_total$labels$colour = c("Telemental \n health")
+plot_stan_linear_total
 ```
 
 

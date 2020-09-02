@@ -356,6 +356,32 @@ stan_linear_log_sum
 
 
 ```
+Test interactions with subgroups
+Somehow this werid loop worked: http://biostat.mc.vanderbilt.edu/wiki/Main/ForLoopRegression
+```{r}
+library(Hmisc)
+
+varnames <- Cs(MDD.x, gender_minority.x, racial_minority.x, IL.x, FL.x, Form_DESC.x)
+modelfits <- vector(length(varnames), mode = "list")
+names(modelfits) <- varnames
+#interactions_test = Cs(MDD.x, gender_minority.x, racial_minority.x, IL.x, FL.x, Form_DESC.x)
+stan_linear_log_sum = list()
+model_formula = list()
+for(i in varnames){
+my_prior = normal(location = 0, scale = .2, autoscale = FALSE)
+model_formula = paste0("log_PHQ9_Total.x ~ MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x + time*face_to_face.x*",i)
+modelfits[[i]] = stan_glm(as.formula(model_formula), data = clean_compare_dat_long, weights = ipw_var, prior = my_prior, seed =  124)
+stan_linear_log_sum[[i]] = round(modelfits[[i]]$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum[[i]] = round(exp(stan_linear_log_sum[[i]]),3)
+### Creates a percentage instead 1 + % 
+#stan_linear_log_sum[[i]]= stan_linear_log_sum[[i]] - 1
+}
+modelfits
+stan_linear_log_sum
+```
+
+
 
 Check model diagnostics
 ```{r}

@@ -318,7 +318,8 @@ Need to identify for trimming and also robust regression, because weights could 
 ```{r}
 
 library(tidyr)
-telehealth_treat_prob = glm(telehealth ~  MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, data = clean_compare_dat_long, family = "binomial")
+library(rstanarm)
+telehealth_treat_prob = stan_glm(telehealth ~  MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, data = clean_compare_dat_long, family = "binomial", seed =  124)
 predict_treat_prob = predict(telehealth_treat_prob, type = "response")
 ipw_var = 1/predict_treat_prob
 ### Don't seem to be any outliers in the weights 
@@ -363,7 +364,7 @@ library(ggplot2)
 colnames(posterior_face)[10] = "face_to_face_time"
 #posterior_face_dat = exp(posterior_face)-1
 
-ggplot(posterior_face_dat, aes(x=face_to_face_time))+
+ggplot(posterior_face, aes(x=face_to_face_time))+
   geom_histogram()+
   geom_vline(aes(xintercept=-.1),
              linetype="dashed")+
@@ -372,13 +373,36 @@ ggplot(posterior_face_dat, aes(x=face_to_face_time))+
   geom_vline(aes(xintercept=0.219),
              linetype="solid")+
   labs(y="Count of parameter estimates", x = "Parameter estimate value (i.e., percentage change)", title  = "Figure 3: Distribution of parameter estimates for the effect of face to face versus\n telemental health over time")+
-  annotate(geom="text", x=.265, y=410, label="Upper 95% CI",
+  annotate(geom="text", x=.275, y=410, label=paste0("Upper 95% CI", ":", "22%"),
               color="red")+
-  annotate(geom="text", x=.02, y=410, label="Lower 95% CI",
+  annotate(geom="text", x=.025, y=410, label=paste0("Lower 95% CI", ":", "-3%"),
               color="red")+
-  annotate(geom="text", x=-.08, y=410, label="NIM",
+  annotate(geom="text", x=-.07, y=410, label=paste0("NIM", ":", "-10%"),
               color="red")
 ```
+Plot for presentation
+```{r}
+library(ggplot2)
+colnames(posterior_face)[10] = "face_to_face_time"
+#posterior_face_dat = exp(posterior_face)-1
+
+ggplot(posterior_face, aes(x=face_to_face_time))+
+  geom_histogram()+
+  geom_vline(aes(xintercept=-.1),
+             linetype="dashed")+
+   geom_vline(aes(xintercept=-0.027),
+             linetype="solid")+
+  geom_vline(aes(xintercept=0.219),
+             linetype="solid")+
+  labs(y="Count of parameter estimates", x = "Parameter estimate value (i.e., percentage change)", title  = "Telehealth is on par (i.e., no worse) relative to face to face services")+
+  annotate(geom="text", x=.275, y=410, label=paste0("Upper 95% CI", ":", " ", "22%"),
+              color="red")+
+  annotate(geom="text", x=.025, y=410, label=paste0("Lower 95% CI", ":", "-3%"),
+              color="red")+
+  annotate(geom="text", x=-.07, y=410, label=paste0("NIM", ":", "-10%"),
+              color="red")
+```
+
 
 
 Test interactions with subgroups
@@ -433,7 +457,26 @@ plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("t
   scale_y_continuous(limits = c(7,13))+
   labs(title="Figure 4: Predicted values of PHQ-9 total scores", y = "PHQ-9 total", x = "Adminstration")
 
-plot_stan_linear_total$labels$colour = c("Telemental \n health")
+plot_stan_linear_total$labels$colour = c("Telemental \n health = 1")
+plot_stan_linear_total
+```
+Plot for presentation
+```{r}
+library(sjPlot)
+library(sjmisc)
+clean_compare_dat_long_plot = clean_compare_dat_long
+
+clean_compare_dat_long_plot$time = to_factor(clean_compare_dat_long_plot$time)
+my_prior = normal(location = 0, scale = .2, autoscale = FALSE)
+stan_linear_total = stan_glm(PHQ9_Total.x ~ time*telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x + Form_DESC.x, prior = my_prior, weights = ipw_var, data = clean_compare_dat_long_plot, seed = 123)
+stan_linear_total_sum = round(stan_linear_total$stan_summary[,c(1,3,4,10)],4)
+stan_linear_total_sum
+
+plot_stan_linear_total= plot_model(stan_linear_total, type = "int", terms = c("time", "telehealth"), legend.title = "telehealth", dot.size = 3)+
+  scale_y_continuous(limits = c(7,13))+
+  labs(title="Telehealth PHQ-9 total scores trending lower than face to face but \n not statistically significantly", y = "PHQ-9 total", x = "Adminstration")
+
+plot_stan_linear_total$labels$colour = c("Telemental \n health = 1")
 plot_stan_linear_total
 ```
 

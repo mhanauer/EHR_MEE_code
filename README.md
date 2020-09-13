@@ -358,6 +358,19 @@ stan_linear_log_sum
 
 
 ```
+Compare changes over time (plot this over time)
+```{r}
+stan_linear_log = stan_glm(log_PHQ9_Total.x ~ as.factor(time) + telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 124,  weights = ipw_var, prior = my_prior)
+stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
+### Creates a percentage instead 1 + % 
+stan_linear_log_sum= stan_linear_log_sum - 1
+stan_linear_log_sum
+
+```
+
+
 Plot the posterior for face to face 
 ```{r}
 library(ggplot2)

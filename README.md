@@ -376,17 +376,6 @@ p_change_fun(stan_linear_log)
 
 
 ```
-Plot the time over time
-```{r}
-library(sjPlot)
-library(sjmisc)
-library(ggplot2)
-
-plot_stan_linear_total= plot_model(stan_linear_log, type = "pred", terms = c("time"), legend.title = "telehealth", dot.size = 3)+
-  labs(title="Figure 4: Predicted values of logged PHQ-9 total scores", y = "logged PHQ-9 total", x = "Adminstration")+
- scale_y_continuous(labels = function(x) paste0(x*10, "%"))
-plot_stan_linear_total
-```
 
 
 Plot the posterior for face to face 

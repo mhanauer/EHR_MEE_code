@@ -89,10 +89,10 @@ Remove all IDs with the same PHQ-9 administration date assuming duplicates
 Create a time variable that describes each PHQ-9 administration
 Remove all time points greater than three
 Create new log + 1 because you cannot take the log of zero
+
 ```{r}
 ### Don't want to change the name so just keeping complete data set
 phq9_diag_demo_complete = phq9_diag_demo
-
 phq9_diag_demo_complete = phq9_diag_demo_complete[order(phq9_diag_demo_complete$SourceClient_ID),]
 #### Comment out to see if the time between sessions changes
 ### Get rid of those in March
@@ -361,13 +361,31 @@ stan_linear_log_sum
 Compare changes over time (plot this over time)
 ```{r}
 stan_linear_log = stan_glm(log_PHQ9_Total.x ~ as.factor(time) + telehealth + MDD.x +gender_minority.x +racial_minority.x + IL.x + FL.x, data = clean_compare_dat_long,  seed = 124,  weights = ipw_var, prior = my_prior)
-stan_linear_log_sum = round(stan_linear_log$stan_summary[,c(1,3,4,10)],4)
-## To get percentage change interpretation need to exp the parameter estimates
-stan_linear_log_sum = round(exp(stan_linear_log_sum),3)
-### Creates a percentage instead 1 + % 
-stan_linear_log_sum= stan_linear_log_sum - 1
-stan_linear_log_sum
 
+p_change_fun = function(model){
+model = round(model$stan_summary[,c(1,3,4,10)],4)
+## To get percentage change interpretation need to exp the parameter estimates
+model_sum = round(exp(model),3)
+### Creates a percentage instead 1 + % 
+model_sum= model_sum - 1
+model_sum
+new_list = list(model, model_sum)
+return(new_list)
+}
+p_change_fun(stan_linear_log)
+
+
+```
+Plot the time over time
+```{r}
+library(sjPlot)
+library(sjmisc)
+library(ggplot2)
+
+plot_stan_linear_total= plot_model(stan_linear_log, type = "pred", terms = c("time"), legend.title = "telehealth", dot.size = 3)+
+  labs(title="Figure 4: Predicted values of logged PHQ-9 total scores", y = "logged PHQ-9 total", x = "Adminstration")+
+ scale_y_continuous(labels = function(x) paste0(x*10, "%"))
+plot_stan_linear_total
 ```
 
 
